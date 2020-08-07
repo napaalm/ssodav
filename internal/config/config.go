@@ -48,8 +48,11 @@ type general struct {
 }
 
 type ldap struct {
-	URI  string `toml:"uri"`
-	Port string `toml:"porta"`
+	URI      string `toml:"uri"`
+	Port     string `toml:"porta"`
+	Username string `toml:"utente"`
+	Password string `toml:"password"`
+	BaseDN   string `toml:"base_dn"`
 }
 
 var Config config

@@ -6,8 +6,11 @@ porta_http=":8080"
 chiave_firma="secret"
 cookie_sicuri=false
 titolo_pagina="SSO Login"
-dummy_auth=true
+dummy_auth=false
 
 [LDAP]
 host="ldap.example.org"
 porta="389"
+utente="admin"
+password="admin"
+base_dn="dc=example,dc=org"
