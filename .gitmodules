@@ -1,0 +1,3 @@
+[submodule "web/ssodav-login-page"]
+	path = web/ssodav-login-page
+	url = https://git.napaalm.xyz/napaalm/ssodav-login-page.git
