@@ -27,11 +27,19 @@ package handlers
 
 import (
 	"encoding/json"
-	"git.napaalm.xyz/napaalm/ssodav/internal/auth"
-	"git.napaalm.xyz/napaalm/ssodav/internal/config"
+	"io/ioutil"
+	"strings"
 	"net/http"
 	"text/template"
+
+	"git.napaalm.xyz/napaalm/ssodav/internal/auth"
+	"git.napaalm.xyz/napaalm/ssodav/internal/config"
 )
+
+type credentials struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
 
 var (
 	Version   string
@@ -63,21 +71,39 @@ func HandleRootOr404(w http.ResponseWriter, r *http.Request) {
 // Percorso: /
 // Pagina di accesso.
 func HandleLogin(w http.ResponseWriter, r *http.Request) {
+	var cr credentials
+
 	if r.Method == "POST" {
-		// Ottiene username e password
-		r.ParseForm()
-		username_list, ok0 := r.Form["username"]
-		password_list, ok1 := r.Form["password"]
-		if !ok0 || !ok1 || len(username_list) != 1 || len(password_list) != 1 {
-			http.Error(w, "Bad Request", http.StatusBadRequest)
-			return
+		// Check if it's a browser
+		contentType := r.Header.Get("Content-Type")
+		isBrowser := !strings.Contains(contentType, "application/json")
+
+		if isBrowser {
+			// Ottiene username e password
+			r.ParseForm()
+			username_list, ok0 := r.Form["username"]
+			password_list, ok1 := r.Form["password"]
+			if !ok0 || !ok1 || len(username_list) != 1 || len(password_list) != 1 {
+				http.Error(w, "Bad Request", http.StatusBadRequest)
+				return
+			}
+
+			cr.Username = username_list[0]
+			cr.Password = password_list[0]
+		} else {
+			body, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				http.Error(w, "Error reading body", http.StatusInternalServerError)
+				return
+			}
+			if err := json.Unmarshal(body, &cr); err != nil {
+				http.Error(w, "Bad Request", http.StatusBadRequest)
+				return
+			}
 		}
 
-		username := username_list[0]
-		password := password_list[0]
-
 		// Controlla le credenziali e ottiene il token
-		token, err := auth.AuthenticateUser(username, password)
+		token, err := auth.AuthenticateUser(cr.Username, cr.Password)
 
 		// Se l'autenticazione fallisce ritorna 401
 		if err != nil {
@@ -85,23 +111,8 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Ottiene l'header Accept
-		acceptHeader := r.Header.Get("Accept")
-
 		// Se la richiesta non viene da un browser...
-		if acceptHeader == "text/json" {
-			// Ritorna il token in una risposta JSON
-			b, err := json.Marshal(map[string]string{
-				"access_token": string(token),
-				"type":         "bearer",
-			})
-
-			if err != nil {
-				// Internal Server Error
-			} else {
-				w.Write([]byte(b))
-			}
-		} else {
+		if isBrowser {
 			// Ottiene la configurazione per i cookie
 			tld := config.Config.General.TLD
 			secure := config.Config.General.SecureCookies
@@ -118,8 +129,21 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 			// Reindirizza a /
 			http.Redirect(w, r, "/", http.StatusSeeOther)
-			return
+		} else {
+			// Ritorna il token in una risposta JSON
+			b, err := json.Marshal(map[string]string{
+				"access_token": string(token),
+				"type":         "bearer",
+			})
+
+			if err != nil {
+				http.Error(w, "Error encoding token", http.StatusInternalServerError)
+			} else {
+				w.Header().Add("Content-Type", "application/json")
+				w.Write([]byte(b))
+			}
 		}
+		return
 	}
 
 	// Ottiene il cookie
