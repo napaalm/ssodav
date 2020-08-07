@@ -14,7 +14,8 @@ test:
 	go test -ldflags "-X main.Version=$(VERSION) -X main.SourceURL=$(URL)" ./...
 
 sandbox/config: config | sandbox/
-	cp -r $^ $@
+	mkdir $@
+	cp $^/config_test.toml $@/config.toml
 
 .PHONY: sandbox/web
 sandbox/web: | sandbox/
