@@ -29,6 +29,7 @@ import (
 
 	"git.napaalm.xyz/napaalm/ssodav/internal/auth"
 	"git.napaalm.xyz/napaalm/ssodav/internal/config"
+	"git.napaalm.xyz/napaalm/ssodav/internal/handlers"
 )
 
 // Set at compile time - see Makefile
@@ -47,8 +48,14 @@ func main() {
 	log.Println("Inizalizzazione...")
 	auth.InitializeSigning()
 
+	// Put compile-time variables where needed
+	handlers.Version = Version
+	handlers.SourceURL = SourceURL
+
 	// Create HTTP server
 	mux := http.NewServeMux()
+
+	mux.HandleFunc("/", handlers.HandleRootOr404)
 
 	// File server for assets
 	fs := http.FileServer(http.Dir("web/ssodav-login-page/assets"))
