@@ -1,5 +1,6 @@
 [Generale]
-fqdn_sito="sso.example.org"
+fqdn_sso="sso.example.org"
+tld_sito="example.org"
 domini_autorizzati=["example.org", "test.example.org"]
 porta_http=":8080"
 chiave_firma="secret"

@@ -37,7 +37,8 @@ type config struct {
 }
 
 type general struct {
-	FQDN          string   `toml:"fqdn_sito"`
+	FQDN          string   `toml:"fqdn_sso"`
+	TLD           string   `toml:"tld_sito"`
 	Domains       []string `toml:"domini_autorizzati"`
 	Port          string   `toml:"porta_http"`
 	JWTSecret     string   `toml:"chiave_firma"`
