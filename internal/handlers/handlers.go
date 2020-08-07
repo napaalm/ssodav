@@ -35,6 +35,7 @@ import (
 
 	"git.napaalm.xyz/napaalm/ssodav/internal/auth"
 	"git.napaalm.xyz/napaalm/ssodav/internal/config"
+	"git.napaalm.xyz/napaalm/ssodav/internal/url"
 )
 
 type credentials struct {
@@ -72,7 +73,10 @@ func HandleRootOr404(w http.ResponseWriter, r *http.Request) {
 // Percorso: /
 // Pagina di accesso.
 func HandleLogin(w http.ResponseWriter, r *http.Request) {
-	var cr credentials
+	var (
+		cr      credentials
+		nextURL string
+	)
 
 	if r.Method == "POST" {
 		// Check if it's a browser
@@ -91,6 +95,9 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 			cr.Username = username_list[0]
 			cr.Password = password_list[0]
+
+			// Get URL to redirect to and sanitize it
+			nextURL = url.SanitizeURL(r.URL.Query().Get("next"))
 		} else {
 			body, err := ioutil.ReadAll(r.Body)
 			if err != nil {
@@ -130,10 +137,8 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 			http.SetCookie(w, &cookie)
 
 			// Reindirizza dopo il login
-			n := r.URL.Query().Get("next")
-
-			if n != "" {
-				http.Redirect(w, r, n, http.StatusSeeOther)
+			if nextURL != "" {
+				http.Redirect(w, r, nextURL, http.StatusSeeOther)
 			} else {
 				http.Redirect(w, r, "http://"+config.Config.General.TLD, http.StatusSeeOther)
 			}
@@ -160,9 +165,8 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 	// Se riesce ad ottenerlo reindirizza
 	if err == nil {
-		n := r.URL.Query().Get("next")
-		if n != "" {
-			http.Redirect(w, r, n, http.StatusSeeOther)
+		if nextURL != "" {
+			http.Redirect(w, r, nextURL, http.StatusSeeOther)
 		} else {
 			http.Redirect(w, r, "http://"+config.Config.General.TLD, http.StatusSeeOther)
 		}
