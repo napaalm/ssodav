@@ -157,7 +157,6 @@ func checkCredentials(username string, password string) (UserInfo, error) {
 
 	// Verifico il numero di utenti corrispondenti e ottendo il DN dell'utente
 	if len(sr.Entries) != 1 {
-		log.Println("auth: ", err.Error())
 		return dummyUserInfo, &AuthenticationError{username}
 	}
 
