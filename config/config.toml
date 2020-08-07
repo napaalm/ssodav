@@ -1,0 +1,11 @@
+[Generale]
+fqdn_sito="sso.example.org"
+domini_autorizzati=["example.org", "test.example.org"]
+porta_http=":8081"
+chiave_firma="secret"
+cookie_sicuri=false
+dummy_auth=true
+
+[LDAP]
+host="ldap.example.org"
+porta="389"
