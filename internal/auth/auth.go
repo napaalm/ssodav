@@ -26,6 +26,7 @@
 package auth
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -40,11 +41,11 @@ var (
 
 // Errore di autenticazione
 type AuthenticationError struct {
-	user string
+	username string
 }
 
 func (e *AuthenticationError) Error() string {
-	return fmt.Sprintf("Authentication error for user %s.", e)
+	return fmt.Sprintf("Errore di autenticazione oppure utente %s non esistente.", e.username)
 }
 
 // Errore di generazione del token
@@ -59,12 +60,21 @@ func (e *JWTCreationError) Error() string {
 // Valore di ritorno di ParseToken
 type UserInfo struct {
 	Username string `json:"username"`
-	IsAdmin  bool   `json:"isAdmin"`
+	FullName string `json:"full_name"`
+	Group    string `json:"group"`
+}
+
+var dummyUserInfo = UserInfo{
+	"h4x0r",
+	"1337 h4x0r",
+	"1337",
 }
 
 // Formato del payload JWT
 type customPayload struct {
-	Payload jwt.Payload
+	Payload  jwt.Payload
+	FullName string `json:"full_name"`
+	Group    string `json:"group"`
 }
 
 // Inizializza l'algoritmo per la firma HS256
@@ -77,62 +87,90 @@ func InitializeSigning() {
 	jwtSigner = jwt.NewHS256([]byte(secret))
 }
 
+// Verifica le credenziali, ottiene il livello di permessi dell'utente e restituisce il token.
+func AuthenticateUser(username, password string) ([]byte, error) {
+	var (
+		err      error = nil
+		userInfo       = UserInfo{username, "unknown", "unknown"}
+	)
+
+	if !config.Config.General.DummyAuth {
+		// Controlla le credenziali
+		userInfo, err = checkCredentials(username, password)
+	}
+
+	if err == nil {
+		// Genera il token
+		token, err := getToken(userInfo)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return token, nil
+
+	} else {
+		return nil, err
+	}
+}
+
 // Controlla le credenziali sul server LDAP
-func checkCredentials(username string, password string) error {
+func checkCredentials(username string, password string) (UserInfo, error) {
 
-	// Utente readonly per la ricerca dell'utente effettivo
-	bindusername := "readonly"
-	bindpassword := "password"
-
-	// Ottiene l'indirizzo del server dalla configurazione
+	// Ottiene la configurazione
 	host := config.Config.LDAP.URI
 	port := config.Config.LDAP.Port
+	baseDN := config.Config.LDAP.BaseDN
+	bindUserDN := "cn=" + config.Config.LDAP.Username + "," + baseDN
+	bindPassword := config.Config.LDAP.Password
 
 	// Connessione al server LDAP
 	l, err := ldap.DialURL("ldap://" + host + ":" + port)
 	if err != nil {
-		return &AuthenticationError{username}
+		return dummyUserInfo, &AuthenticationError{username}
 	}
 	defer l.Close()
 
-	// Per prima cosa effettuo l'accesso con un utente readonly
-	err = l.Bind(bindusername, bindpassword)
+	// Per prima cosa effettuo l'accesso con un utente admin
+	err = l.Bind(bindUserDN, bindPassword)
 	if err != nil {
-		return &AuthenticationError{username}
+		return dummyUserInfo, &AuthenticationError{username}
 	}
 
 	// Cerco l'username richiesto
 	searchRequest := ldap.NewSearchRequest(
-		"dc=example,dc=com",
+		baseDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		fmt.Sprintf("(&(objectClass=organizationalPerson)(uid=%s))", username),
-		[]string{"dn"},
+		fmt.Sprintf("(uid=%s)", username),
+		[]string{"dn", "cn", "ou"},
 		nil,
 	)
 
 	sr, err := l.Search(searchRequest)
 	if err != nil {
-		return &AuthenticationError{username}
+		return dummyUserInfo, &AuthenticationError{username}
 	}
 
 	// Verifico il numero di utenti corrispondenti e ottendo il DN dell'utente
 	if len(sr.Entries) != 1 {
-		return &AuthenticationError{username}
+		return dummyUserInfo, &AuthenticationError{username}
 	}
 
-	userdn := sr.Entries[0].DN
+	userDN := sr.Entries[0].DN
+	fullName := sr.Entries[0].GetAttributeValue("cn")
+	group := sr.Entries[0].GetAttributeValue("ou")
 
 	// Verifica la password
-	err = l.Bind(userdn, password)
+	err = l.Bind(userDN, password)
 	if err != nil {
-		return &AuthenticationError{username}
+		return dummyUserInfo, errors.New("Password errata!")
 	}
 
-	return nil
+	return UserInfo{username, fullName, group}, nil
 }
 
 // Genera un token
-func getToken(username string, isAdmin bool) ([]byte, error) {
+func getToken(userInfo UserInfo) ([]byte, error) {
 
 	var (
 		// Ottiene il tempo corrente
@@ -158,18 +196,20 @@ func getToken(username string, isAdmin bool) ([]byte, error) {
 	pl := customPayload{
 		Payload: jwt.Payload{
 			Issuer:         fqdn,
-			Subject:        username,
+			Subject:        userInfo.Username,
 			Audience:       aud,
 			ExpirationTime: jwt.NumericDate(now.Add(24 * time.Hour)),
 			IssuedAt:       jwt.NumericDate(now),
 		},
+		FullName: userInfo.FullName,
+		Group:    userInfo.Group,
 	}
 
 	// Firma il token
 	token, err := jwt.Sign(pl, jwtSigner)
 
 	if err != nil {
-		return nil, &JWTCreationError{username}
+		return nil, &JWTCreationError{userInfo.Username}
 	}
 
 	return token, nil
