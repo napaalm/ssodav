@@ -72,10 +72,7 @@ func HandleRootOr404(w http.ResponseWriter, r *http.Request) {
 // Percorso: /
 // Pagina di accesso.
 func HandleLogin(w http.ResponseWriter, r *http.Request) {
-	var (
-		cr      credentials
-		nextURL string
-	)
+	var cr credentials
 
 	if r.Method == "POST" {
 		// Check if it's a browser
@@ -87,7 +84,6 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 			r.ParseForm()
 			username_list, ok0 := r.Form["username"]
 			password_list, ok1 := r.Form["password"]
-			next_list, _ := r.Form["next"]
 			if !ok0 || !ok1 || len(username_list) != 1 || len(password_list) != 1 {
 				http.Error(w, "Bad Request", http.StatusBadRequest)
 				return
@@ -95,9 +91,6 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 			cr.Username = username_list[0]
 			cr.Password = password_list[0]
-			if len(next_list) == 1 {
-				nextURL = next_list[0]
-			}
 		} else {
 			body, err := ioutil.ReadAll(r.Body)
 			if err != nil {
@@ -137,10 +130,12 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 			http.SetCookie(w, &cookie)
 
 			// Reindirizza dopo il login
-			if nextURL != "" {
-				http.Redirect(w, r, nextURL, http.StatusSeeOther)
+			n := r.URL.Query().Get("next")
+
+			if n != "" {
+				http.Redirect(w, r, n, http.StatusSeeOther)
 			} else {
-				http.Redirect(w, r, config.Config.General.TLD, http.StatusSeeOther)
+				http.Redirect(w, r, "http://"+config.Config.General.TLD, http.StatusSeeOther)
 			}
 		} else {
 			// Ritorna il token in una risposta JSON
@@ -163,9 +158,14 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	// Ottiene il cookie
 	_, err := r.Cookie("access_token")
 
-	// Se riesce ad ottenerlo reindirizza a /
+	// Se riesce ad ottenerlo reindirizza
 	if err == nil {
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		n := r.URL.Query().Get("next")
+		if n != "" {
+			http.Redirect(w, r, n, http.StatusSeeOther)
+		} else {
+			http.Redirect(w, r, "http://"+config.Config.General.TLD, http.StatusSeeOther)
+		}
 		return
 	}
 
