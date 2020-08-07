@@ -67,5 +67,7 @@ func main() {
 		Handler: mux,
 	}
 
+	log.Println("Inizializzazione completata!")
+
 	log.Fatal(srv.ListenAndServe())
 }

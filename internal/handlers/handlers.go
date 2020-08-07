@@ -28,6 +28,7 @@ package handlers
 import (
 	"encoding/json"
 	"io/ioutil"
+	"log"
 	"strings"
 	"net/http"
 	"text/template"
@@ -93,6 +94,7 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 		} else {
 			body, err := ioutil.ReadAll(r.Body)
 			if err != nil {
+				log.Println("handlers: ", err.Error())
 				http.Error(w, "Error reading body", http.StatusInternalServerError)
 				return
 			}
@@ -137,6 +139,7 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 			})
 
 			if err != nil {
+				log.Println("handlers: ", err.Error())
 				http.Error(w, "Error encoding token", http.StatusInternalServerError)
 			} else {
 				w.Header().Add("Content-Type", "application/json")

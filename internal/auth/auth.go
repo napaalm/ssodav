@@ -28,6 +28,7 @@ package auth
 import (
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"git.napaalm.xyz/napaalm/ssodav/internal/config"
@@ -127,6 +128,7 @@ func checkCredentials(username string, password string) (UserInfo, error) {
 	// Connessione al server LDAP
 	l, err := ldap.DialURL("ldap://" + host + ":" + port)
 	if err != nil {
+		log.Println("auth: ", err.Error())
 		return dummyUserInfo, &AuthenticationError{username}
 	}
 	defer l.Close()
@@ -134,6 +136,7 @@ func checkCredentials(username string, password string) (UserInfo, error) {
 	// Per prima cosa effettuo l'accesso con un utente admin
 	err = l.Bind(bindUserDN, bindPassword)
 	if err != nil {
+		log.Println("auth: ", err.Error())
 		return dummyUserInfo, &AuthenticationError{username}
 	}
 
@@ -148,11 +151,13 @@ func checkCredentials(username string, password string) (UserInfo, error) {
 
 	sr, err := l.Search(searchRequest)
 	if err != nil {
+		log.Println("auth: ", err.Error())
 		return dummyUserInfo, &AuthenticationError{username}
 	}
 
 	// Verifico il numero di utenti corrispondenti e ottendo il DN dell'utente
 	if len(sr.Entries) != 1 {
+		log.Println("auth: ", err.Error())
 		return dummyUserInfo, &AuthenticationError{username}
 	}
 
