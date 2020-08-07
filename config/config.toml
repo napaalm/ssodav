@@ -5,6 +5,7 @@ domini_autorizzati=["example.org", "test.example.org"]
 porta_http=":8080"
 chiave_firma="secret"
 cookie_sicuri=false
+titolo_pagina="SSO Login"
 dummy_auth=true
 
 [LDAP]

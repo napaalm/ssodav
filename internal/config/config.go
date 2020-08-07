@@ -43,6 +43,7 @@ type general struct {
 	Port          string   `toml:"porta_http"`
 	JWTSecret     string   `toml:"chiave_firma"`
 	SecureCookies bool     `toml:"cookie_sicuri"`
+	PageTitle     string   `toml:"titolo_pagina"`
 	DummyAuth     bool     `toml:"dummy_auth"`
 }
 
