@@ -183,3 +183,8 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 		SourceURL   string
 	}{pageTitle, licenseURL, licenseName, SourceURL})
 }
+
+// Favicon handler
+func HandleFavicon(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, templatesDir+"/assets/img/favicon.ico")
+}

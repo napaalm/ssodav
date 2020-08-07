@@ -56,6 +56,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/", handlers.HandleRootOr404)
+	mux.HandleFunc("/favicon.ico", handlers.HandleFavicon)
 
 	// File server for assets
 	fs := http.FileServer(http.Dir("web/ssodav-login-page/assets"))
