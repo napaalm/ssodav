@@ -165,6 +165,9 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 	// Se riesce ad ottenerlo reindirizza
 	if err == nil {
+		// Get URL to redirect to and sanitize it
+		nextURL = url.SanitizeURL(r.URL.Query().Get("next"))
+
 		if nextURL != "" {
 			http.Redirect(w, r, nextURL, http.StatusSeeOther)
 		} else {
