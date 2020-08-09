@@ -1,5 +1,5 @@
 [Generale]
-fqdn_sso="sso.example.org"
+fqdn_sso="localhost"
 tld_sito="localhost"
 domini_autorizzati=["example.org", "test.example.org"]
 porta_http=":8080"

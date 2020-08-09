@@ -1,0 +1,66 @@
+openapi: 3.0.3
+
+info:
+  title: ssodav
+  description: Servizio di SSO
+  version: {{.Version}}
+
+servers:
+- url: {{.URL}}
+
+paths:
+  /:
+    post:
+      summary: Endpoint per l'autenticazione. Controlla le credenziali e restituisce un token JWT.
+      requestBody:
+        description: Credenziali
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  example: 'professor'
+                password:
+                  type: string
+                  example: 'professor'
+      responses:
+        200:
+          description: Autenticazione eseguita con successo.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJQYXlsb2FkIjp7ImlzcyI6InNzby5leGFtcGxlLm9yZyIsInN1YiI6InByb2Zlc3NvciIsImF1ZCI6WyJodHRwOi8vZXhhbXBsZS5vcmciLCJodHRwczovL2V4YW1wbGUub3JnIiwiaHR0cDovL3Rlc3QuZXhhbXBsZS5vcmciLCJodHRwczovL3Rlc3QuZXhhbXBsZS5vcmciXSwiZXhwIjoxNTk3MDgxMTI2LCJpYXQiOjE1OTY5OTQ3MjZ9LCJmdWxsX25hbWUiOiJIdWJlcnQgSi4gRmFybnN3b3J0aCIsImdyb3VwIjoiT2ZmaWNlIE1hbmFnZW1lbnQifQ.3-vB0T0xH1pk-UG2IfEKjBP-0cjx_Yz7B2QM78drlaY'
+                  type:
+                    type: string
+                    example: 'bearer'
+        400:
+          $ref: '#/components/responses/BadRequest'
+        401:
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  schemas:
+    Credenziali:
+      type: object
+      properties:
+        username:
+          type: string
+          example: 'professor'
+        password:
+          type: string
+          example: 'professor'
+  responses:
+    BadRequest:
+      description: Richiesta eseguita con sintassi non valida.
+      content: {}
+    Unauthorized:
+      description: Credenziali invalide.
+      content: {}
+    UnsupportedMediaType:
+      description: Valore di `Accept` non supportato.

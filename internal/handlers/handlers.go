@@ -27,11 +27,12 @@ package handlers
 
 import (
 	"encoding/json"
+	"html/template"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"strings"
-	"text/template"
+	text_template "text/template"
 	"time"
 
 	"git.napaalm.xyz/napaalm/ssodav/internal/auth"
@@ -50,7 +51,8 @@ var (
 )
 
 const (
-	templatesDir = "web/ssodav-login-page"
+	loginTemplatesDir = "web/ssodav-login-page"
+	openapiDir        = "web/openapi"
 
 	// Licenza AGPL3
 	licenseURL  = "https://www.gnu.org/licenses/agpl-3.0.en.html"
@@ -58,7 +60,10 @@ const (
 )
 
 // Viene inizializzato nel momento in cui viene importato il package
-var templates = template.Must(template.ParseFiles(templatesDir + "/index.html"))
+var (
+	loginTemplates   = template.Must(template.ParseFiles(loginTemplatesDir + "/index.html"))
+	openapiTemplates = text_template.Must(text_template.ParseFiles(openapiDir + "/openapi.yaml"))
+)
 
 // Handler per qualunque percorso diverso da tutti gli altri percorsi riconosciuti.
 // Caso particolare è la homepage (/); per ogni altro restituisce 404.
@@ -156,7 +161,7 @@ func HandleBrowserLogin(w http.ResponseWriter, r *http.Request) {
 	// Load page title from the configuration
 	pageTitle := config.Config.General.PageTitle
 
-	templates.ExecuteTemplate(w, "index.html", struct {
+	loginTemplates.ExecuteTemplate(w, "index.html", struct {
 		PageTitle   string
 		LicenseURL  string
 		LicenseName string
@@ -204,5 +209,38 @@ func HandleRestfulLogin(w http.ResponseWriter, r *http.Request) {
 
 // Favicon handler
 func HandleFavicon(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, templatesDir+"/assets/img/favicon.ico")
+	http.ServeFile(w, r, loginTemplatesDir+"/assets/img/favicon.ico")
+}
+
+// Swagger UI handler
+func HandleSwaggerUI(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html")
+	http.ServeFile(w, r, openapiDir+"/index.html")
+}
+
+// openapi.yaml handler
+func HandleOpenAPI(w http.ResponseWriter, r *http.Request) {
+	var fqdn, url, scheme string
+
+	w.Header().Set("Content-Type", "application/yaml")
+
+	// Define URL
+	fqdn = config.Config.General.FQDN
+
+	if config.Config.General.SecureCookies {
+		scheme = "https://"
+	} else {
+		scheme = "http://"
+	}
+
+	url = scheme + fqdn
+
+	if fqdn == "localhost" {
+		url += config.Config.General.Port
+	}
+
+	openapiTemplates.ExecuteTemplate(w, "openapi.yaml", struct {
+		Version string
+		URL     string
+	}{Version, url})
 }

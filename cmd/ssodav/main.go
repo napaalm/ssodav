@@ -56,6 +56,8 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/", handlers.HandleRootOr404)
+	mux.HandleFunc("/api", handlers.HandleSwaggerUI)
+	mux.HandleFunc("/api/openapi.yaml", handlers.HandleOpenAPI)
 	mux.HandleFunc("/favicon.ico", handlers.HandleFavicon)
 
 	// File server for assets
