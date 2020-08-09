@@ -29,9 +29,10 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
-	"strings"
 	"net/http"
+	"strings"
 	"text/template"
+	"time"
 
 	"git.napaalm.xyz/napaalm/ssodav/internal/auth"
 	"git.napaalm.xyz/napaalm/ssodav/internal/config"
@@ -84,16 +85,27 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func HandleBrowserLogin(w http.ResponseWriter, r *http.Request) {
-	// Get URL to redirect to and sanitize it
-	var nextURL = url.SanitizeURL(r.URL.Query().Get("next"))
+	var (
+		expTime time.Duration
+		// Get URL to redirect to and sanitize it
+		nextURL = url.SanitizeURL(r.URL.Query().Get("next"))
+	)
 
 	if r.Method == "POST" {
 		// Get username and password from the form
 		username := r.FormValue("username")
 		password := r.FormValue("password")
+		remember := r.FormValue("remember")
+
+		// Set token/cookie expiration time
+		if remember == "on" {
+			expTime = 7 * 24 * time.Hour // 7 days
+		} else {
+			expTime = 24 * time.Hour // 1 day
+		}
 
 		// Check credentials and generate a token
-		token, err := auth.AuthenticateUser(username, password)
+		token, err := auth.AuthenticateUser(username, password, expTime)
 
 		// Authentication failure
 		if err != nil {
@@ -110,7 +122,7 @@ func HandleBrowserLogin(w http.ResponseWriter, r *http.Request) {
 			Name:   "access_token",
 			Value:  string(token),
 			Domain: tld,
-			MaxAge: 86400, // 24 ore
+			MaxAge: int(expTime.Seconds()),
 			Secure: secure,
 		}
 		http.SetCookie(w, &cookie)
@@ -163,8 +175,8 @@ func HandleRestfulLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check credentials and generate a token
-	token, err := auth.AuthenticateUser(cr.Username, cr.Password)
+	// Check credentials and generate a token valid for a day
+	token, err := auth.AuthenticateUser(cr.Username, cr.Password, 24*time.Hour)
 
 	// Authentication failure
 	if err != nil {

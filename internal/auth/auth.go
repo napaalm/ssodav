@@ -89,7 +89,7 @@ func InitializeSigning() {
 }
 
 // Verifica le credenziali, ottiene il livello di permessi dell'utente e restituisce il token.
-func AuthenticateUser(username, password string) ([]byte, error) {
+func AuthenticateUser(username, password string, exp time.Duration) ([]byte, error) {
 	var (
 		err      error = nil
 		userInfo       = UserInfo{username, "unknown", "unknown"}
@@ -102,7 +102,7 @@ func AuthenticateUser(username, password string) ([]byte, error) {
 
 	if err == nil {
 		// Genera il token
-		token, err := getToken(userInfo)
+		token, err := getToken(userInfo, exp)
 
 		if err != nil {
 			return nil, err
@@ -174,7 +174,7 @@ func checkCredentials(username string, password string) (UserInfo, error) {
 }
 
 // Genera un token
-func getToken(userInfo UserInfo) ([]byte, error) {
+func getToken(userInfo UserInfo, exp time.Duration) ([]byte, error) {
 
 	var (
 		// Ottiene il tempo corrente
@@ -202,7 +202,7 @@ func getToken(userInfo UserInfo) ([]byte, error) {
 			Issuer:         fqdn,
 			Subject:        userInfo.Username,
 			Audience:       aud,
-			ExpirationTime: jwt.NumericDate(now.Add(24 * time.Hour)),
+			ExpirationTime: jwt.NumericDate(now.Add(exp)),
 			IssuedAt:       jwt.NumericDate(now),
 		},
 		FullName: userInfo.FullName,
