@@ -42,7 +42,7 @@ func SanitizeURL(URL string) string {
 	}
 
 	// The URL must have the TLD specified in the configuration
-	if !strings.Contains(u.Hostname(), config.Config.General.TLD) {
+	if !strings.HasSuffix(u.Hostname(), config.Config.General.TLD) {
 		return ""
 	}
 
