@@ -218,3 +218,44 @@ func getToken(userInfo UserInfo, exp time.Duration) ([]byte, error) {
 
 	return token, nil
 }
+
+// Verify a token
+func VerifyToken(token []byte) error {
+
+	var (
+		// Ottiene il tempo corrente
+		now = time.Now()
+
+		// Carico i domini autorizzati dalla configurazione
+		domains = config.Config.General.Domains
+
+		// Inizializzo l'audience
+		aud = jwt.Audience{}
+	)
+
+	// Definisco l'audience
+	for _, domain := range domains {
+		aud = append(aud, "http://"+domain)
+		aud = append(aud, "https://"+domain)
+	}
+
+	var (
+		// Inizializzo i "validatori"
+		iatValidator = jwt.IssuedAtValidator(now)
+		expValidator = jwt.ExpirationTimeValidator(now)
+		audValidator = jwt.AudienceValidator(aud)
+
+		// Costruisco il validatore supremo
+		pl              customPayload
+		validatePayload = jwt.ValidatePayload(&pl.Payload, iatValidator, expValidator, audValidator)
+	)
+
+	// Verifico il token
+	_, err := jwt.Verify(token, jwtSigner, &pl, validatePayload)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

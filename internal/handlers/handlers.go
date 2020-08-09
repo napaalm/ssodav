@@ -137,8 +137,11 @@ func HandleBrowserLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if cookie is set
-	_, err := r.Cookie("access_token")
+	// Check if cookie is set and valid
+	cookie, err := r.Cookie("access_token")
+	if err == nil {
+		err = auth.VerifyToken([]byte(cookie.Value))
+	}
 
 	// If it is redirect
 	if err == nil {
