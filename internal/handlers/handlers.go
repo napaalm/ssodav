@@ -89,16 +89,8 @@ func HandleBrowserLogin(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "POST" {
 		// Get username and password from the form
-		r.ParseForm()
-		username_list, ok0 := r.Form["username"]
-		password_list, ok1 := r.Form["password"]
-		if !ok0 || !ok1 || len(username_list) != 1 || len(password_list) != 1 {
-			http.Error(w, "Bad Request", http.StatusBadRequest)
-			return
-		}
-
-		username := username_list[0]
-		password := password_list[0]
+		username := r.FormValue("username")
+		password := r.FormValue("password")
 
 		// Check credentials and generate a token
 		token, err := auth.AuthenticateUser(username, password)
