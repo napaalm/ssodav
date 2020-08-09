@@ -73,101 +73,71 @@ func HandleRootOr404(w http.ResponseWriter, r *http.Request) {
 // Percorso: /
 // Pagina di accesso.
 func HandleLogin(w http.ResponseWriter, r *http.Request) {
-	var (
-		cr      credentials
-		nextURL string
-	)
+	// Check if request is restful
+	contentType := r.Header.Get("Content-Type")
+
+	if strings.Contains(contentType, "application/json") {
+		HandleRestfulLogin(w, r)
+	} else {
+		HandleBrowserLogin(w, r)
+	}
+}
+
+func HandleBrowserLogin(w http.ResponseWriter, r *http.Request) {
+	// Get URL to redirect to and sanitize it
+	var nextURL = url.SanitizeURL(r.URL.Query().Get("next"))
 
 	if r.Method == "POST" {
-		// Check if it's a browser
-		contentType := r.Header.Get("Content-Type")
-		isBrowser := !strings.Contains(contentType, "application/json")
-
-		if isBrowser {
-			// Ottiene i dati del form
-			r.ParseForm()
-			username_list, ok0 := r.Form["username"]
-			password_list, ok1 := r.Form["password"]
-			if !ok0 || !ok1 || len(username_list) != 1 || len(password_list) != 1 {
-				http.Error(w, "Bad Request", http.StatusBadRequest)
-				return
-			}
-
-			cr.Username = username_list[0]
-			cr.Password = password_list[0]
-
-			// Get URL to redirect to and sanitize it
-			nextURL = url.SanitizeURL(r.URL.Query().Get("next"))
-		} else {
-			body, err := ioutil.ReadAll(r.Body)
-			if err != nil {
-				log.Println("handlers: ", err.Error())
-				http.Error(w, "Error reading body", http.StatusInternalServerError)
-				return
-			}
-			if err := json.Unmarshal(body, &cr); err != nil {
-				http.Error(w, "Bad Request", http.StatusBadRequest)
-				return
-			}
+		// Get username and password from the form
+		r.ParseForm()
+		username_list, ok0 := r.Form["username"]
+		password_list, ok1 := r.Form["password"]
+		if !ok0 || !ok1 || len(username_list) != 1 || len(password_list) != 1 {
+			http.Error(w, "Bad Request", http.StatusBadRequest)
+			return
 		}
 
-		// Controlla le credenziali e ottiene il token
-		token, err := auth.AuthenticateUser(cr.Username, cr.Password)
+		username := username_list[0]
+		password := password_list[0]
 
-		// Se l'autenticazione fallisce ritorna 401
+		// Check credentials and generate a token
+		token, err := auth.AuthenticateUser(username, password)
+
+		// Authentication failure
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
 
-		// Se la richiesta viene da un browser...
-		if isBrowser {
-			// Ottiene la configurazione per i cookie
-			tld := config.Config.General.TLD
-			secure := config.Config.General.SecureCookies
+		// Load cookie configuration
+		tld := config.Config.General.TLD
+		secure := config.Config.General.SecureCookies
 
-			// Crea e imposta il cookie
-			cookie := http.Cookie{
-				Name:   "access_token",
-				Value:  string(token),
-				Domain: tld,
-				MaxAge: 86400, // 24 ore
-				Secure: secure,
-			}
-			http.SetCookie(w, &cookie)
-
-			// Reindirizza dopo il login
-			if nextURL != "" {
-				http.Redirect(w, r, nextURL, http.StatusSeeOther)
-			} else {
-				http.Redirect(w, r, "http://"+config.Config.General.TLD, http.StatusSeeOther)
-			}
-		} else {
-			// Ritorna il token in una risposta JSON
-			b, err := json.Marshal(map[string]string{
-				"access_token": string(token),
-				"type":         "bearer",
-			})
-
-			if err != nil {
-				log.Println("handlers: ", err.Error())
-				http.Error(w, "Error encoding token", http.StatusInternalServerError)
-			} else {
-				w.Header().Add("Content-Type", "application/json")
-				w.Write([]byte(b))
-			}
+		// Create cookie
+		cookie := http.Cookie{
+			Name:   "access_token",
+			Value:  string(token),
+			Domain: tld,
+			MaxAge: 86400, // 24 ore
+			Secure: secure,
 		}
+		http.SetCookie(w, &cookie)
+
+		// Redirect after login
+		if nextURL != "" {
+			http.Redirect(w, r, nextURL, http.StatusSeeOther)
+		} else {
+			http.Redirect(w, r, "http://"+config.Config.General.TLD, http.StatusSeeOther)
+		}
+
 		return
 	}
 
-	// Ottiene il cookie
+	// Check if cookie is set
 	_, err := r.Cookie("access_token")
 
-	// Se riesce ad ottenerlo reindirizza
+	// If it is redirect
 	if err == nil {
-		// Get URL to redirect to and sanitize it
-		nextURL = url.SanitizeURL(r.URL.Query().Get("next"))
-
 		if nextURL != "" {
 			http.Redirect(w, r, nextURL, http.StatusSeeOther)
 		} else {
@@ -176,7 +146,7 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Carica il titolo della pagina dalla configurazione
+	// Load page title from the configuration
 	pageTitle := config.Config.General.PageTitle
 
 	templates.ExecuteTemplate(w, "index.html", struct {
@@ -185,6 +155,44 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 		LicenseName string
 		SourceURL   string
 	}{pageTitle, licenseURL, licenseName, SourceURL})
+}
+
+func HandleRestfulLogin(w http.ResponseWriter, r *http.Request) {
+	var cr credentials
+
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Not a POST request", http.StatusBadRequest)
+		return
+	}
+
+	if err := json.Unmarshal(body, &cr); err != nil {
+		http.Error(w, "Can't parse JSON", http.StatusBadRequest)
+		return
+	}
+
+	// Check credentials and generate a token
+	token, err := auth.AuthenticateUser(cr.Username, cr.Password)
+
+	// Authentication failure
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	// Return token in a JSON object
+	b, err := json.Marshal(map[string]string{
+		"access_token": string(token),
+		"type":         "bearer",
+	})
+
+	if err != nil {
+		log.Println("handlers: ", err.Error())
+		http.Error(w, "Error while encoding response", http.StatusInternalServerError)
+	} else {
+		w.Header().Add("Content-Type", "application/json")
+		w.Write([]byte(b))
+	}
 }
 
 // Favicon handler
