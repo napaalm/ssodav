@@ -161,12 +161,14 @@ func HandleBrowserLogin(w http.ResponseWriter, r *http.Request) {
 	// Load page title from the configuration
 	pageTitle := config.Config.General.PageTitle
 
-	loginTemplates.ExecuteTemplate(w, "index.html", struct {
+	if err := loginTemplates.ExecuteTemplate(w, "index.html", struct {
 		PageTitle   string
 		LicenseURL  string
 		LicenseName string
 		SourceURL   string
-	}{pageTitle, licenseURL, licenseName, SourceURL})
+	}{pageTitle, licenseURL, licenseName, SourceURL}); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func HandleRestfulLogin(w http.ResponseWriter, r *http.Request) {
@@ -239,8 +241,10 @@ func HandleOpenAPI(w http.ResponseWriter, r *http.Request) {
 		url += config.Config.General.Port
 	}
 
-	openapiTemplates.ExecuteTemplate(w, "openapi.yaml", struct {
+	if err := openapiTemplates.ExecuteTemplate(w, "openapi.yaml", struct {
 		Version string
 		URL     string
-	}{Version, url})
+	}{Version, url}); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }

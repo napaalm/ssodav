@@ -43,6 +43,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         401:
           $ref: '#/components/responses/Unauthorized'
+        500:
+          $ref: '#/components/responses/InternalServerError'
 
 components:
   schemas:
@@ -61,6 +63,9 @@ components:
       content: {}
     Unauthorized:
       description: Credenziali invalide.
+      content: {}
+    InternalServerError:
+      description: Errore interno al server.
       content: {}
     UnsupportedMediaType:
       description: Valore di `Accept` non supportato.
