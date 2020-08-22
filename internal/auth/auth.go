@@ -46,7 +46,7 @@ type AuthenticationError struct {
 }
 
 func (e *AuthenticationError) Error() string {
-	return fmt.Sprintf("Errore di autenticazione oppure utente %s non esistente.", e.username)
+	return fmt.Sprintf("Errore di autenticazione oppure utente \"%s\" non esistente.", e.username)
 }
 
 // Errore di generazione del token
@@ -55,7 +55,7 @@ type JWTCreationError struct {
 }
 
 func (e *JWTCreationError) Error() string {
-	return fmt.Sprintf("Failed to sign the JWT token for username %s.", e.username)
+	return fmt.Sprintf("Failed to sign the JWT token for username \"%s\".", e.username)
 }
 
 // Valore di ritorno di ParseToken
