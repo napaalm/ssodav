@@ -1,0 +1,16 @@
+[Generale]
+fqdn_sso="localhost"
+tld_sito="localhost"
+domini_autorizzati=["example.org", "test.example.org"]
+porta_http=":8080"
+chiave_firma="secret"
+cookie_sicuri=false
+titolo_pagina="SSO Login"
+dummy_auth=false
+
+[LDAP]
+host="localhost"
+porta="389"
+utente="admin"
+password="GoodNewsEveryone"
+base_dn="dc=planetexpress,dc=com"
