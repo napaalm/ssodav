@@ -49,7 +49,8 @@ clean:
 .PHONY: linux
 linux:
 	mkdir -p release/$(BINARY)-$(VERSION)-$@-amd64
-	cp -r config release/$(BINARY)-$(VERSION)-$@-amd64
+	mkdir -p release/$(BINARY)-$(VERSION)-$@-amd64/config
+	cp config/config.toml release/$(BINARY)-$(VERSION)-$@-amd64/config
 	cp -r web release/$(BINARY)-$(VERSION)-$@-amd64
 	GOOS=$@ GOARCH=amd64 go build -ldflags "-X main.Version=$(VERSION) -X main.SourceURL=$(URL)" -o release/$(BINARY)-$(VERSION)-$@-amd64/ ./...
 	cd release; tar -czf $(BINARY)-$(VERSION)-$@-amd64.tar.gz $(BINARY)-$(VERSION)-$@-amd64
@@ -57,7 +58,8 @@ linux:
 .PHONY: windows
 windows:
 	mkdir -p release/$(BINARY)-$(VERSION)-$@-amd64
-	cp -r config release/$(BINARY)-$(VERSION)-$@-amd64
+	mkdir -p release/$(BINARY)-$(VERSION)-$@-amd64/config
+	cp config/config.toml release/$(BINARY)-$(VERSION)-$@-amd64/config
 	cp -r web release/$(BINARY)-$(VERSION)-$@-amd64
 	GOOS=$@ GOARCH=amd64 go build -ldflags "-X main.Version=$(VERSION) -X main.SourceURL=$(URL)" -o release/$(BINARY)-$(VERSION)-$@-amd64/ ./...
 	cd release; zip -qr $(BINARY)-$(VERSION)-$@-amd64.zip $(BINARY)-$(VERSION)-$@-amd64
