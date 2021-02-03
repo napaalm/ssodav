@@ -2,7 +2,7 @@
 fqdn_sso="sso.example.org"
 tld_sito="example.org"
 domini_autorizzati=["example.org", "test.example.org"]
-porta_http=":8080"
+porta_http=":5473"
 chiave_firma="secret"
 cookie_sicuri=false
 titolo_pagina="SSO Login"
