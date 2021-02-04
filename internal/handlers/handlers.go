@@ -209,6 +209,34 @@ func HandleRestfulLogin(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Percorso: /logout
+// Endpoint di logout.
+func HandleLogout(w http.ResponseWriter, r *http.Request) {
+	// Get URL to redirect to and sanitize it
+	nextURL := url.SanitizeURL(r.URL.Query().Get("next"))
+
+	// Load cookie configuration
+	tld := config.Config.General.TLD
+	secure := config.Config.General.SecureCookies
+
+	// Create cookie
+	cookie := http.Cookie{
+		Name:    "access_token",
+		Value:   "",
+		Expires: time.Unix(0, 0),
+		Domain:  tld,
+		Secure:  secure,
+	}
+	http.SetCookie(w, &cookie)
+
+	// Redirect after login
+	if nextURL != "" {
+		http.Redirect(w, r, nextURL, http.StatusSeeOther)
+	} else {
+		http.Redirect(w, r, "http://"+config.Config.General.TLD, http.StatusSeeOther)
+	}
+}
+
 // Favicon handler
 func HandleFavicon(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, loginTemplatesDir+"/assets/img/favicon.ico")
