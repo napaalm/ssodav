@@ -51,6 +51,10 @@ func SanitizeURL(URL string) string {
 		return ""
 	}
 
+	// The scheme must be http or https
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return ""
+	}
 	// Santize host and scheme and return
 	return u.String()
 }
