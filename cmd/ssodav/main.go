@@ -47,6 +47,7 @@ func main() {
 	// Initialize packages
 	log.Println("Inizalizzazione...")
 	auth.InitializeSigning()
+	handlers.InitializeLimiters()
 
 	// Put compile-time variables where needed
 	handlers.Version = Version

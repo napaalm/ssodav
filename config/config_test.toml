@@ -14,3 +14,7 @@ porta="389"
 utente="admin"
 password="GoodNewsEveryone"
 base_dn="dc=planetexpress,dc=com"
+
+[Limiti]
+rps_totali=16.6
+max_richieste=5000

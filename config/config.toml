@@ -14,3 +14,7 @@ porta="389"
 utente="admin"
 password="admin"
 base_dn="dc=example,dc=org"
+
+[Limiti]
+rps_totali=16.6
+max_richieste=5000

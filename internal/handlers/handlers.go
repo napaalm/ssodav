@@ -27,6 +27,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"html/template"
 	"io/ioutil"
 	"log"
@@ -38,6 +39,7 @@ import (
 	"git.napaalm.xyz/napaalm/ssodav/internal/auth"
 	"git.napaalm.xyz/napaalm/ssodav/internal/config"
 	"git.napaalm.xyz/napaalm/ssodav/internal/url"
+	"golang.org/x/time/rate"
 )
 
 type credentials struct {
@@ -63,7 +65,17 @@ const (
 var (
 	loginTemplates   = template.Must(template.ParseFiles(loginTemplatesDir + "/index.html"))
 	openapiTemplates = text_template.Must(text_template.ParseFiles(openapiDir + "/openapi.yaml"))
+	globalLimiter    *rate.Limiter
+	accountLimiters  map[string]*rate.Limiter
+	addressLimiters  map[string]*rate.Limiter
 )
+
+// Inizializza i rate limiter
+func InitializeLimiters() {
+	globalLimiter = rate.NewLimiter(rate.Limit(config.Config.Limits.Rate), config.Config.Limits.Burst)
+	accountLimiters = make(map[string]*rate.Limiter)
+	addressLimiters = make(map[string]*rate.Limiter)
+}
 
 // Handler per qualunque percorso diverso da tutti gli altri percorsi riconosciuti.
 // Caso particolare è la homepage (/); per ogni altro restituisce 404.
@@ -89,6 +101,55 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Ottiene l'indirizzo IP di una richiesta HTTP
+func GetIP(r *http.Request) string {
+	// Use forwarded address if present
+	if fwdAddr := r.Header.Get("X-Forwarded-For"); fwdAddr != "" {
+		// Get the first address in the header (see https://en.wikipedia.org/wiki/X-Forwarded-For)
+		ips := strings.Split(fwdAddr, ", ")
+
+		if len(ips) > 1 {
+			return ips[0]
+		}
+
+		return fwdAddr
+	}
+
+	// Return only the ip, not the port
+	return strings.Split(r.RemoteAddr, ":")[0]
+}
+
+// Controlla ed eventualmente limita le richieste
+func RateLimit(username, ip string) (int, error) {
+	// Create the rate limiter instances if they're not present
+	if _, ok := addressLimiters[ip]; !ok {
+		addressLimiters[ip] = rate.NewLimiter(rate.Every(time.Duration(3600*1000000000)), 20)
+	}
+
+	if _, ok := accountLimiters[username]; !ok {
+		accountLimiters[username] = rate.NewLimiter(rate.Every(time.Duration(600*1000000000)), 5)
+	}
+
+	// Check if allowed
+	globalAllow := globalLimiter.Allow()
+	accountAllow := accountLimiters[username].Allow()
+	addressAllow := addressLimiters[ip].Allow()
+
+	if !globalAllow {
+		return http.StatusServiceUnavailable, errors.New("Server di autenticazione non disponibile. Riprova più tardi.")
+	}
+
+	if !addressAllow {
+		return http.StatusTooManyRequests, errors.New("Hai superato il numero massimo di tentativi di accesso. Riprova più tardi!")
+	}
+
+	if !accountAllow {
+		return http.StatusTooManyRequests, errors.New("È stato superato il numero massimo di tentativi di accesso per questo account. Riprova più tardi!")
+	}
+
+	return http.StatusOK, nil
+}
+
 func HandleBrowserLogin(w http.ResponseWriter, r *http.Request) {
 	var (
 		expTime time.Duration
@@ -101,6 +162,31 @@ func HandleBrowserLogin(w http.ResponseWriter, r *http.Request) {
 		username := r.FormValue("username")
 		password := r.FormValue("password")
 		remember := r.FormValue("remember")
+
+		// Obtain client ip address
+		ip := GetIP(r)
+
+		// Check the rate limiter
+		if status, err := RateLimit(username, ip); err != nil {
+			// Set status code
+			w.WriteHeader(status)
+
+			// Load page title from the configuration
+			pageTitle := config.Config.General.PageTitle
+
+			if errT := loginTemplates.ExecuteTemplate(w, "index.html", struct {
+				PageTitle    string
+				LicenseURL   string
+				LicenseName  string
+				SourceURL    string
+				Error        bool
+				ErrorMessage string
+			}{pageTitle, licenseURL, licenseName, SourceURL, true, err.Error()}); errT != nil {
+				http.Error(w, errT.Error(), http.StatusInternalServerError)
+			}
+
+			return
+		}
 
 		// Set token/cookie expiration time
 		if remember == "on" {
@@ -200,6 +286,15 @@ func HandleRestfulLogin(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.Unmarshal(body, &cr); err != nil {
 		http.Error(w, "Can't parse JSON", http.StatusBadRequest)
+		return
+	}
+
+	// Get client's IP address
+	ip := GetIP(r)
+
+	// Check the rate limiter
+	if status, err := RateLimit(cr.Username, ip); err != nil {
+		http.Error(w, err.Error(), status)
 		return
 	}
 

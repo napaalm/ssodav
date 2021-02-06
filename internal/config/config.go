@@ -34,6 +34,7 @@ import (
 type config struct {
 	General general `toml:"Generale"`
 	LDAP    ldap    `toml:"LDAP"`
+	Limits  limits  `toml:"Limiti"`
 }
 
 type general struct {
@@ -53,6 +54,11 @@ type ldap struct {
 	Username string `toml:"utente"`
 	Password string `toml:"password"`
 	BaseDN   string `toml:"base_dn"`
+}
+
+type limits struct {
+	Rate  float64 `toml:"rps_totali"`
+	Burst int     `toml:"max_richieste"`
 }
 
 var Config config
