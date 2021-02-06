@@ -114,7 +114,23 @@ func HandleBrowserLogin(w http.ResponseWriter, r *http.Request) {
 
 		// Authentication failure
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusUnauthorized)
+			// Set 401 header
+			w.WriteHeader(http.StatusUnauthorized)
+
+			// Load page title from the configuration
+			pageTitle := config.Config.General.PageTitle
+
+			if errT := loginTemplates.ExecuteTemplate(w, "index.html", struct {
+				PageTitle    string
+				LicenseURL   string
+				LicenseName  string
+				SourceURL    string
+				Error        bool
+				ErrorMessage string
+			}{pageTitle, licenseURL, licenseName, SourceURL, true, err.Error()}); errT != nil {
+				http.Error(w, errT.Error(), http.StatusInternalServerError)
+			}
+
 			return
 		}
 
@@ -162,11 +178,13 @@ func HandleBrowserLogin(w http.ResponseWriter, r *http.Request) {
 	pageTitle := config.Config.General.PageTitle
 
 	if err := loginTemplates.ExecuteTemplate(w, "index.html", struct {
-		PageTitle   string
-		LicenseURL  string
-		LicenseName string
-		SourceURL   string
-	}{pageTitle, licenseURL, licenseName, SourceURL}); err != nil {
+		PageTitle    string
+		LicenseURL   string
+		LicenseName  string
+		SourceURL    string
+		Error        bool
+		ErrorMessage string
+	}{pageTitle, licenseURL, licenseName, SourceURL, false, ""}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
