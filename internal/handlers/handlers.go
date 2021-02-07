@@ -158,10 +158,35 @@ func HandleBrowserLogin(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if r.Method == "POST" {
+		// Parse the form
+		err := r.ParseForm()
+
 		// Get username and password from the form
-		username := r.FormValue("username")
-		password := r.FormValue("password")
-		remember := r.FormValue("remember")
+		username := r.PostFormValue("username")
+		password := r.PostFormValue("password")
+		remember := r.PostFormValue("remember")
+
+		// Check if it is a valid request
+		if err != nil || username == "" || password == "" {
+			// Set status code
+			w.WriteHeader(http.StatusBadRequest)
+
+			// Load page title from the configuration
+			pageTitle := config.Config.General.PageTitle
+
+			if errT := loginTemplates.ExecuteTemplate(w, "index.html", struct {
+				PageTitle    string
+				LicenseURL   string
+				LicenseName  string
+				SourceURL    string
+				Error        bool
+				ErrorMessage string
+			}{pageTitle, licenseURL, licenseName, SourceURL, true, "Impossibile elaborare la richiesta!"}); errT != nil {
+				http.Error(w, errT.Error(), http.StatusInternalServerError)
+			}
+
+			return
+		}
 
 		// Obtain client ip address
 		ip := GetIP(r)
