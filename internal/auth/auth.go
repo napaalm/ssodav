@@ -144,7 +144,7 @@ func checkCredentials(username string, password string) (UserInfo, error) {
 	searchRequest := ldap.NewSearchRequest(
 		baseDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		fmt.Sprintf("(uid=%s)", username),
+		fmt.Sprintf("(uid=%s)", ldap.EscapeFilter(username)), // Escape username
 		[]string{"dn", "cn", "ou"},
 		nil,
 	)
