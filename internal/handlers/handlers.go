@@ -38,8 +38,8 @@ import (
 
 	"git.napaalm.xyz/napaalm/ssodav/internal/auth"
 	"git.napaalm.xyz/napaalm/ssodav/internal/config"
+	"git.napaalm.xyz/napaalm/ssodav/internal/rate"
 	"git.napaalm.xyz/napaalm/ssodav/internal/url"
-	"golang.org/x/time/rate"
 )
 
 type credentials struct {
@@ -120,7 +120,7 @@ func GetIP(r *http.Request) string {
 }
 
 // Controlla ed eventualmente limita le richieste
-func RateLimit(username, ip string) (int, error) {
+func RateLimit(username, ip string) (*rate.Reservation, *rate.Reservation, int, error) {
 	// Create the rate limiter instances if they're not present
 	if _, ok := addressLimiters[ip]; !ok {
 		addressLimiters[ip] = rate.NewLimiter(rate.Every(time.Duration(3600*1000000000)), 20)
@@ -132,22 +132,22 @@ func RateLimit(username, ip string) (int, error) {
 
 	// Check if allowed
 	globalAllow := globalLimiter.Allow()
-	accountAllow := accountLimiters[username].Allow()
-	addressAllow := addressLimiters[ip].Allow()
+	accountReservation := accountLimiters[username].ReserveNow()
+	addressReservation := addressLimiters[ip].ReserveNow()
 
 	if !globalAllow {
-		return http.StatusServiceUnavailable, errors.New("Server di autenticazione non disponibile. Riprova più tardi.")
+		return nil, nil, http.StatusServiceUnavailable, errors.New("Server di autenticazione non disponibile. Riprova più tardi.")
 	}
 
-	if !addressAllow {
-		return http.StatusTooManyRequests, errors.New("Hai superato il numero massimo di tentativi di accesso. Riprova più tardi!")
+	if !addressReservation.OK() {
+		return nil, nil, http.StatusTooManyRequests, errors.New("Hai superato il numero massimo di tentativi di accesso. Riprova più tardi!")
 	}
 
-	if !accountAllow {
-		return http.StatusTooManyRequests, errors.New("È stato superato il numero massimo di tentativi di accesso per questo account. Riprova più tardi!")
+	if !accountReservation.OK() {
+		return nil, nil, http.StatusTooManyRequests, errors.New("È stato superato il numero massimo di tentativi di accesso per questo account. Riprova più tardi!")
 	}
 
-	return http.StatusOK, nil
+	return accountReservation, addressReservation, http.StatusOK, nil
 }
 
 func HandleBrowserLogin(w http.ResponseWriter, r *http.Request) {
@@ -192,7 +192,8 @@ func HandleBrowserLogin(w http.ResponseWriter, r *http.Request) {
 		ip := GetIP(r)
 
 		// Check the rate limiter
-		if status, err := RateLimit(username, ip); err != nil {
+		accountReservation, addressReservation, status, err := RateLimit(username, ip)
+		if err != nil {
 			// Set status code
 			w.WriteHeader(status)
 
@@ -244,6 +245,10 @@ func HandleBrowserLogin(w http.ResponseWriter, r *http.Request) {
 
 			return
 		}
+
+		// Cancel reservations on successful logins
+		accountReservation.Cancel()
+		addressReservation.Cancel()
 
 		// Load cookie configuration
 		tld := config.Config.General.TLD
@@ -318,7 +323,8 @@ func HandleRestfulLogin(w http.ResponseWriter, r *http.Request) {
 	ip := GetIP(r)
 
 	// Check the rate limiter
-	if status, err := RateLimit(cr.Username, ip); err != nil {
+	accountReservation, addressReservation, status, err := RateLimit(cr.Username, ip)
+	if err != nil {
 		http.Error(w, err.Error(), status)
 		return
 	}
@@ -331,6 +337,10 @@ func HandleRestfulLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
+
+	// Cancel reservations on successful logins
+	accountReservation.Cancel()
+	addressReservation.Cancel()
 
 	// Return token in a JSON object
 	b, err := json.Marshal(map[string]string{
